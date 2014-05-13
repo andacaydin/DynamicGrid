@@ -163,6 +163,9 @@ public class DynamicGridView extends GridView {
         mIsEditMode = false;
         if (isPostHoneycomb() && mWobbleInEditMode)
             stopWobble(true);
+        if(itemHoverListener != null){
+        	itemHoverListener.onItemHoverStop();
+        }
     }
 
     public boolean isEditMode() {
@@ -541,8 +544,7 @@ public class DynamicGridView extends GridView {
                 return;
             }
 
-            mHoverCellCurrentBounds.offsetTo(mobileView.getLeft(), mobileView.getTop());
-
+            if(IS_REORDER)mHoverCellCurrentBounds.offsetTo(mobileView.getLeft(), mobileView.getTop());
             if (Build.VERSION.SDK_INT > Build.VERSION_CODES.HONEYCOMB) {
                 animateBounds(mobileView);
             } else {
@@ -550,6 +552,7 @@ public class DynamicGridView extends GridView {
                 invalidate();
                 reset(mobileView);
             }
+           
         } else {
             touchEventsCancelled();
         }
@@ -599,7 +602,7 @@ public class DynamicGridView extends GridView {
     private void reset(View mobileView) {
         idList.clear();
         mMobileItemId = INVALID_ID;
-        mobileView.setVisibility(View.VISIBLE);
+        if(mobileView!=null) mobileView.setVisibility(View.VISIBLE);
         mHoverCell = null;
         if (!mIsEditMode && isPostHoneycomb() && mWobbleInEditMode)
             stopWobble(true);
@@ -630,6 +633,9 @@ public class DynamicGridView extends GridView {
         mCellIsMobile = false;
         mIsMobileScrolling = false;
         mActivePointerId = INVALID_ID;
+        if(itemHoverListener != null){
+        	itemHoverListener.onItemHoverStop();
+        }
 
     }
 
@@ -647,33 +653,23 @@ public class DynamicGridView extends GridView {
         final int deltaYTotal = mHoverCellOriginalBounds.centerY() + mTotalOffsetY + deltaY;
         final int deltaXTotal = mHoverCellOriginalBounds.centerX() + mTotalOffsetX + deltaX;
         View targetView = null;
-        float vX = 0;
-        float vY = 0;
 
         for (Long id : idList) {
             View view = getViewForId(id);
             if (view != null) {
-                Rect rect = new Rect(deltaXTotal,deltaYTotal, deltaXTotal, deltaYTotal);
-                if(isIntersectingRectangles(view, rect)){
-                    float xDiff = Math.abs(DynamicGridUtils.getViewX(view) - DynamicGridUtils.getViewX(mobileView));
-                    float yDiff = Math.abs(DynamicGridUtils.getViewY(view) - DynamicGridUtils.getViewY(mobileView));
-                    Log.i(TAG, "targetview xDiff/yDiff"+xDiff+"/"+yDiff);
-                    if (xDiff >= vX && yDiff >= vY) {
-                        vX = xDiff;
-                        vY = yDiff;
-                        Log.i(TAG, "targetview set due to lowest diff x=("+vX+") y=("+vY+")");
+                if(containsCoordinates(view, deltaXTotal, deltaYTotal)){
                         targetView = view;
-                    }
                 }
             }
         }
+        Log.i(TAG, "targetview set="+targetView+" delta:"+deltaXTotal+"/"+deltaYTotal);
         return targetView;
     }
 
-    private boolean isIntersectingRectangles(View view, Rect rc2){
+    private boolean containsCoordinates(View view, int x, int y){
         Rect rc1 = new Rect();
         view.getHitRect(rc1);
-        if(Rect.intersects(rc1, rc2)){
+        if(rc1.contains(x, y)){
             return true;
         }else {
             return false;
@@ -681,15 +677,41 @@ public class DynamicGridView extends GridView {
     }
 
     private void handleCellSwitch() {
-        View mobileView = getViewForId(mMobileItemId);
-        if(mobileView == null){
-            return; //get out: element doesnt exist anymore, maybe deleted
-        };
-
-        final int deltaY = mLastEventY - mDownY;
+    	final int deltaY = mLastEventY - mDownY;
         final int deltaX = mLastEventX - mDownX;
-        View targetView = getViewUnderMobileView();
-
+        final int deltaYTotal = mHoverCellOriginalBounds.centerY() + mTotalOffsetY + deltaY;
+        final int deltaXTotal = mHoverCellOriginalBounds.centerX() + mTotalOffsetX + deltaX;
+        View mobileView = getViewForId(mMobileItemId);
+        View targetView = null;
+        float vX = 0;
+        float vY = 0;
+        Point mobileColumnRowPair = getColumnAndRowForView(mobileView);
+        for (Long id : idList) {
+            View view = getViewForId(id);
+            if (view != null) {
+                Point targetColumnRowPair = getColumnAndRowForView(view);
+                if ((aboveRight(targetColumnRowPair, mobileColumnRowPair)
+                        && deltaYTotal < view.getBottom() && deltaXTotal > view.getLeft()
+                        || aboveLeft(targetColumnRowPair, mobileColumnRowPair)
+                        && deltaYTotal < view.getBottom() && deltaXTotal < view.getRight()
+                        || belowRight(targetColumnRowPair, mobileColumnRowPair)
+                        && deltaYTotal > view.getTop() && deltaXTotal > view.getLeft()
+                        || belowLeft(targetColumnRowPair, mobileColumnRowPair)
+                        && deltaYTotal > view.getTop() && deltaXTotal < view.getRight()
+                        || above(targetColumnRowPair, mobileColumnRowPair) && deltaYTotal < view.getBottom())
+                        || below(targetColumnRowPair, mobileColumnRowPair) && deltaYTotal > view.getTop()
+                        || right(targetColumnRowPair, mobileColumnRowPair) && deltaXTotal > view.getLeft()
+                        || left(targetColumnRowPair, mobileColumnRowPair) && deltaXTotal < view.getRight()) {
+                    float xDiff = Math.abs(DynamicGridUtils.getViewX(view) - DynamicGridUtils.getViewX(mobileView));
+                    float yDiff = Math.abs(DynamicGridUtils.getViewY(view) - DynamicGridUtils.getViewY(mobileView));
+                    if (xDiff >= vX && yDiff >= vY) {
+                        vX = xDiff;
+                        vY = yDiff;
+                        targetView = view;
+                    }
+                }
+            }
+        }
         if (targetView != null) {
             final int originalPosition = getPositionForView(mobileView);
             int targetPosition = getPositionForView(targetView);
@@ -724,6 +746,37 @@ public class DynamicGridView extends GridView {
                 mTotalOffsetX += deltaX;
             }
         }
+    }
+    private boolean belowLeft(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y > mobileColumnRowPair.y && targetColumnRowPair.x < mobileColumnRowPair.x;
+    }
+
+    private boolean belowRight(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y > mobileColumnRowPair.y && targetColumnRowPair.x > mobileColumnRowPair.x;
+    }
+
+    private boolean aboveLeft(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y < mobileColumnRowPair.y && targetColumnRowPair.x < mobileColumnRowPair.x;
+    }
+
+    private boolean aboveRight(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y < mobileColumnRowPair.y && targetColumnRowPair.x > mobileColumnRowPair.x;
+    }
+
+    private boolean above(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y < mobileColumnRowPair.y && targetColumnRowPair.x == mobileColumnRowPair.x;
+    }
+
+    private boolean below(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y > mobileColumnRowPair.y && targetColumnRowPair.x == mobileColumnRowPair.x;
+    }
+
+    private boolean right(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y == mobileColumnRowPair.y && targetColumnRowPair.x > mobileColumnRowPair.x;
+    }
+
+    private boolean left(Point targetColumnRowPair, Point mobileColumnRowPair) {
+        return targetColumnRowPair.y == mobileColumnRowPair.y && targetColumnRowPair.x < mobileColumnRowPair.x;
     }
 
     private Point getColumnAndRowForView(View view) {
@@ -837,8 +890,8 @@ public class DynamicGridView extends GridView {
             mPreviousVisibleItemCount = (mPreviousVisibleItemCount == -1) ? mCurrentVisibleItemCount
                     : mPreviousVisibleItemCount;
 
-            checkAndHandleFirstVisibleCellChange();
-            checkAndHandleLastVisibleCellChange();
+            if(IS_REORDER) checkAndHandleFirstVisibleCellChange();
+            if(IS_REORDER) checkAndHandleLastVisibleCellChange();
 
             mPreviousFirstVisibleItem = mCurrentFirstVisibleItem;
             mPreviousVisibleItemCount = mCurrentVisibleItemCount;
