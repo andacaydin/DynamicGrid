@@ -5,14 +5,17 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Toast;
-import org.askerov.dynamicgid.DynamicGridView;
+import org.askerov.dynamicgrid.DynamicGridView;
+import org.askerov.dynamicgrid.DynamicGridView.ItemHoverListener;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class GridActivity extends Activity {
+public class GridActivity extends Activity implements ItemHoverListener {
 
     private DynamicGridView gridView;
+	private View mobileView;
+	private View targetView;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -22,15 +25,6 @@ public class GridActivity extends Activity {
         gridView.setAdapter(new CheeseDynamicAdapter(this,
                 new ArrayList<String>(Arrays.asList(Cheeses.sCheeseStrings)),
                 3));
-//        add callback to stop edit mode if needed
-//        gridView.setOnDropListener(new DynamicGridView.OnDropListener()
-//        {
-//            @Override
-//            public void onActionDrop()
-//            {
-//                gridView.stopEditMode();
-//            }
-//        });
         gridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
@@ -46,6 +40,8 @@ public class GridActivity extends Activity {
                         Toast.LENGTH_SHORT).show();
             }
         });
+        gridView.setIsReorder(false);
+        gridView.setItemHoverListener(this);
     }
 
     @Override
@@ -56,4 +52,22 @@ public class GridActivity extends Activity {
             super.onBackPressed();
         }
     }
+
+	@Override
+	public void onItemHoverStart(View mobileView, View targetView) {
+		this.mobileView = mobileView;
+		this.targetView = targetView;
+		mobileView.setBackgroundColor(getResources().getColor(R.color.AliceBlue));
+		targetView.setBackgroundColor(getResources().getColor(R.color.FireBrick));
+		
+	}
+
+	@Override
+	public void onItemHoverStop() {
+		if(mobileView != null)
+		mobileView.setBackgroundColor(getResources().getColor(R.color.transparent));
+		if(targetView != null)
+		targetView.setBackgroundColor(getResources().getColor(R.color.transparent));
+		mobileView = targetView = null;
+	}
 }
