@@ -1,9 +1,10 @@
-package org.askerov.dynamicgid;
+package org.askerov.dynamicgrid;
 
 import android.widget.BaseAdapter;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Author: alex askerov
@@ -94,6 +95,15 @@ public abstract class AbstractDynamicGridAdapter extends BaseAdapter {
      */
     protected void removeStableID(Object item) {
         mIdMap.remove(item);
+    }
+    
+    public final Object getItemById(long id){
+        for(Map.Entry entry : mIdMap.entrySet()){
+            if(entry.getValue().equals((int)id)){
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
 }

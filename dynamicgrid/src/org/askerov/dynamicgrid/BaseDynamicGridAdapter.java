@@ -1,4 +1,4 @@
-package org.askerov.dynamicgid;
+package org.askerov.dynamicgrid;
 
 import android.content.Context;
 
@@ -14,6 +14,7 @@ public abstract class BaseDynamicGridAdapter extends AbstractDynamicGridAdapter 
     private Context mContext;
 
     private ArrayList<Object> mItems = new ArrayList<Object>();
+    private Object clickedChild;
     private int mColumnCount;
 
     protected BaseDynamicGridAdapter(Context context, int columnCount) {
@@ -100,5 +101,10 @@ public abstract class BaseDynamicGridAdapter extends AbstractDynamicGridAdapter 
 
     protected Context getContext() {
         return mContext;
+    }
+    
+    public void setClickedChild(Object newClickedChildPosition) {
+        this.clickedChild = newClickedChildPosition;
+        this.notifyDataSetChanged();
     }
 }
