@@ -544,7 +544,7 @@ public class DynamicGridView extends GridView {
                 return;
             }
 
-            if(IS_REORDER)mHoverCellCurrentBounds.offsetTo(mobileView.getLeft(), mobileView.getTop());
+            mHoverCellCurrentBounds.offsetTo(mobileView.getLeft(), mobileView.getTop());
             if (Build.VERSION.SDK_INT > Build.VERSION_CODES.HONEYCOMB) {
                 animateBounds(mobileView);
             } else {
